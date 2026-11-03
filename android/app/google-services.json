@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "224873835978",
+    "project_id": "vazhii",
+    "storage_bucket": "vazhii.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:224873835978:android:8a2c70b0f18bccdb87b333",
+        "android_client_info": {
+          "package_name": "com.example.vazhii"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDgJARLhwPUhViKEB4ibLkcx_Er0l7XUJw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

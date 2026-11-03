@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isCoordinator() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'coordinator' ||
+        exists(/databases/$(database)/documents/coordinators/$(request.auth.uid))
+      );
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId) || isCoordinator();
+    }
+
+    // Bookings Collection
+    match /bookings/{bookingId} {
+      // Customers can read their own bookings; Coordinators can read all bookings
+      allow read: if isCoordinator() || 
+        (isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid));
+
+      // New booking creation:
+      // Customer must set bookingStatus to 'pending' initially and associate with own UID
+      allow create: if isCoordinator() || (
+        isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.bookingStatus == 'pending'
+      );
+
+      // Updates:
+      // Coordinator has full update permissions.
+      // Customer can ONLY transition:
+      // 1) pending -> cancelled
+      // 2) confirmed -> cancellation_requested
+      // and cannot modify pricing, assigned driver, or vehicle
+      allow update: if isCoordinator() || (
+        isAuthenticated() &&
+        resource.data.userId == request.auth.uid &&
+        (
+          // Customer cancels pending booking
+          (resource.data.bookingStatus == 'pending' && request.resource.data.bookingStatus == 'cancelled') ||
+          // Customer requests cancellation of confirmed booking
+          (resource.data.bookingStatus == 'confirmed' && request.resource.data.bookingStatus == 'cancellation_requested')
+        ) &&
+        request.resource.data.estimatedPrice == resource.data.estimatedPrice &&
+        request.resource.data.userId == resource.data.userId
+      );
+
+      // Deletions are forbidden to keep audit trail
+      allow delete: if false;
+    }
+
+    // Destinations and Vehicles (Publicly readable catalog)
+    match /destinations/{destId} {
+      allow read: if true;
+      allow write: if isCoordinator();
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if true;
+      allow write: if isCoordinator();
+    }
+
+    // Coordinators registry
+    match /coordinators/{coordinatorId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Managed via Firebase Console / Admin SDK
+    }
+  }
+}
+
